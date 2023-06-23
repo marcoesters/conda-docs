@@ -12,14 +12,6 @@ def load_info_json(filepath):
         return json_dict
 
 
-def get_all_packages(info_dict):
-    """
-    Input: dict of the info.json
-    Output: list of package filenames
-    """
-    pass
-
-
 def main():
 
     # Get all filepaths to json files
@@ -31,9 +23,6 @@ def main():
 
         # Read info.json
         info_dict = load_info_json(filepath)
-
-        # Get all packge filenames:
-        pkg_filenames = get_all_packages(info_dict)
 
         # Parse for filename of installer
         outpath = info_dict['_outpath']
