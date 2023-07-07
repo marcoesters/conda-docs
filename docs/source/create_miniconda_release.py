@@ -29,7 +29,7 @@ PLATFORM_MAP = {
         "operating_system": "Windows",
         "suffix": "Windows-x86.exe",
         "description": "Windows 32-bit",
-        "miniconda_version": "4.12.0",
+        "miniconda_version": "4.12.0",  # win-32 will be frozen at version 4.12.0
     },
     "osx64_sh": {
         "operating_system": "macOS",
