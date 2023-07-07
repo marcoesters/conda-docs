@@ -118,12 +118,17 @@ def sizeof_fmt(num, suffix="B"):
 
 
 def get_supported_python_versions(miniconda_version, files_info):
+    """
+    Return python versions found in Miniconda installer file names
+    for a particular Miniconda version.
+    """
     py_versions = []
     for filename in files_info:
-        if not miniconda_version in filename or "py" not in filename:
+        if not f"_{miniconda_version}-" in filename or "py" not in filename:
             continue
         py_intermediate = filename.split("py")[1]
         py_version = py_intermediate.split("_")[0]
+        py_version = f"{py_version[0]}.{py_version[1:]}"
         if py_version not in py_versions:
             py_versions.append(py_version)
     return py_versions
@@ -135,11 +140,10 @@ def get_miniconda_template_vars(miniconda_version, files_info, release_info):
     installer built for the latest CONDA_VERSION.
     """
     py_versions = get_supported_python_versions(miniconda_version, files_info)
-    py_versions_sorted = sorted(py_versions, reverse=True, key=int)
     info = {
         "conda_version": miniconda_version.split("-")[0],
         "operating_systems": OPERATING_SYSTEMS,
-        "py_versions": [f"{py[0]}.{py[1:]}" for py in py_versions_sorted],
+        "py_versions": sorted(py_versions, reverse=True, key=Version),
     }
     release = next(iter(release_info.values()))
     for package in release["packages"]:
