@@ -134,35 +134,27 @@ def get_supported_python_versions(miniconda_version, files_info):
     return py_versions
 
 
-def get_miniconda_template_vars(miniconda_version, files_info, release_info):
+def get_miniconda_template_vars(files_info, release_info):
     """
     Returns a dict with sizes and SHA256 hashes for each
     installer built for the latest CONDA_VERSION.
     """
-    py_versions = get_supported_python_versions(miniconda_version, files_info)
     info = {
-        "conda_version": miniconda_version.split("-")[0],
+        "conda_version": release_info["miniconda_version"].split("-")[0],
+        "release_date": release_info["release_date"],
         "operating_systems": OPERATING_SYSTEMS,
-        "py_versions": sorted(py_versions, reverse=True, key=Version),
+        "py_versions": sorted(release_info["py_versions"], reverse=True, key=Version),
+        "python_version": release_info["python_version"],
     }
-    release = next(iter(release_info.values()))
-    for package in release["packages"]:
-        if package["name"] == "python":
-            info["python_version"] = package["version"]
-            break
     info["platforms"] = {(os,"latest"): [] for os in info["operating_systems"]}
 
     for platform_id, installer_data in PLATFORM_MAP.items():
         latest_installer = f"Miniconda3-latest-{installer_data['suffix']}"
-        if "release_date" not in info:
-            mtime = files_info[latest_installer]["mtime"]
-            mdate = datetime.date.fromtimestamp(mtime)
-            info["release_date"] = mdate.strftime("%B %-d, %Y")
         os = installer_data["operating_system"]
         info["platforms"][os,"latest"].append(installer_data.copy())
         info["platforms"][os,"latest"][-1]["hash"] = files_info[latest_installer]["sha256"]
         if "miniconda_version" not in installer_data:
-            installer_data["miniconda_version"] = miniconda_version
+            installer_data["miniconda_version"] = release_info["miniconda_version"]
         for py_version in info["py_versions"]:
             py = py_version.replace(".", "")
             full_installer = (
@@ -180,9 +172,27 @@ def get_miniconda_template_vars(miniconda_version, files_info, release_info):
             installer["hash"] = files_info[full_installer]["sha256"]
             installer["full_installer"] = full_installer
 
-    import pprint
-    pprint.pprint(info)
     return info
+
+
+def get_release_template_vars(miniconda_version, release_info, files_info):
+    release_vars = {
+        "miniconda_version": miniconda_version,
+    }
+    for (platform, ext), info in release_info.items():
+        if "python_version" not in release_vars:
+            for package in info["packages"]:
+                if package["name"] == "python":
+                    release_vars["python_version"] = package["version"]
+                    break
+        installer_file = Path(info["_outpath"]).name
+        if "release_date" not in info and installer_file in files_info:
+            mtime = files_info[installer_file]["mtime"]
+            mdate = datetime.date.fromtimestamp(mtime)
+            release_vars["release_date"] = mdate.strftime("%B %-d, %Y")
+    py_versions = get_supported_python_versions(miniconda_version, files_info)
+    release_vars["py_versions"] = sorted(py_versions, key=Version)
+    return release_vars
 
 
 def main():
@@ -194,10 +204,12 @@ def main():
         release_info[release.name] = get_installer_info(release)
 
     miniconda_vars = {}
-    release_vars = {}
+    release_vars = {"release": []}
     for r, release in enumerate(sorted(release_info, reverse=True, key=Version)):
+        template_vars = get_release_template_vars(release, release_info[release], files_info)
+        release_vars["release"].append(template_vars)
         if r == 0:
-            miniconda_vars = get_miniconda_template_vars(release, files_info, release_info[release])
+            miniconda_vars = get_miniconda_template_vars(files_info, release_vars["release"][0])
 
     template_files = (RELEASE_NOTES_TEMPLATE, MINICONDA_RST_TEMPLATE)
     template_vars = (release_vars, miniconda_vars)
